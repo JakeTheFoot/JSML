@@ -1,0 +1,8 @@
+README.md
+setup.py
+JSNN/__init__.py
+JSNN/hello.py
+JSNN.egg-info/PKG-INFO
+JSNN.egg-info/SOURCES.txt
+JSNN.egg-info/dependency_links.txt
+JSNN.egg-info/top_level.txt
