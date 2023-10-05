@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.1'
+VERSION = '0.1.1'
 DESCRIPTION = 'Barebones file structure for a Python package'
 
 # Setting up
 setup(
-    name="JSNN",
+    name="JSML",
     version=VERSION,
     author="JakeSilberstein",
     author_email="<jake.silberstein8@gmail.com>",

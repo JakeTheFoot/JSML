@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
-Name: JSNN
-Version: 0.0.1
+Name: JSML
+Version: 0.1.1
 Summary: Barebones file structure for a Python package
 Author: JakeSilberstein
 Author-email: <jake.silberstein8@gmail.com>
