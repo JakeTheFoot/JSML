@@ -1,8 +1,13 @@
 README.md
 setup.py
 JSML/__init__.py
-JSML/hello.py
 JSML.egg-info/PKG-INFO
 JSML.egg-info/SOURCES.txt
 JSML.egg-info/dependency_links.txt
 JSML.egg-info/top_level.txt
+JSML/basic/__init__.py
+JSML/basic/activations.py
+JSML/basic/layers.py
+JSML/basic/losses-and-accuracy.py
+JSML/basic/model.py
+JSML/basic/optimizers.py
