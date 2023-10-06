@@ -1,10 +1,10 @@
 Metadata-Version: 2.1
 Name: JSML
-Version: 0.2.1
-Summary: Barebones file structure for a Python package
+Version: 0.2.2
+Summary: Non-Functional Machine Learning Library
 Author: Jake Silberstein
 Author-email: <jake.silberstein8@gmail.com>
-Keywords: python,Neural Networks,AI,CNN,RNN,DQN,LSTM,GRU,TransformersBeyesian Optimization
+Keywords: python,Neural Networks,AI,CNN,RNN,DQN,LSTM,GRU,Transformers,Beyesian Optimization
 Classifier: Development Status :: 1 - Planning
 Classifier: Intended Audience :: Developers
 Classifier: Programming Language :: Python :: 3

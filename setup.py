@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.2.1'
-DESCRIPTION = 'Barebones file structure for a Python package'
+VERSION = '0.2.2'
+DESCRIPTION = 'Non-Functional Machine Learning Library'
 
 # Setting up
 setup(
@@ -11,7 +11,15 @@ setup(
     author_email="<jake.silberstein8@gmail.com>",
     description=DESCRIPTION,
     packages=find_packages(),
-    install_requires=[],
+    install_requires=[
+        'numpy',
+        'scipy',
+        'sklearn',
+        'matplotlib',
+        'joblib',
+        'opencv-python',  # for cv2
+        'gym',
+    ],
     keywords=['python', 'Neural Networks', 'AI', 'CNN',
               'RNN', 'DQN', 'LSTM', 'GRU', 'Transformers', 'Beyesian Optimization'],
     classifiers=[
