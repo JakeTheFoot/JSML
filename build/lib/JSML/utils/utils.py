@@ -1,3 +1,9 @@
+import numpy as np
+import json
+import cv2
+import os
+
+
 def Load_MNIST_Dataset(dataset, path):
 
     # Scan all the directories and create a list of labels
@@ -29,8 +35,8 @@ def Load_MNIST_Dataset(dataset, path):
 def Create_Data_MNIST(path):
 
     # Load both sets separately
-    X, y = load_mnist_dataset('train', path)
-    X_test, y_test = load_mnist_dataset('test', path)
+    X, y = Load_MNIST_Dataset('train', path)
+    X_test, y_test = Load_MNIST_Dataset('test', path)
 
     # And return all the data
     return X, y, X_test, y_test

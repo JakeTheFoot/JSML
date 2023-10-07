@@ -1,4 +1,8 @@
+import numpy as np
+
 # Dense layer
+
+
 class Layer_Dense:
 
     # Layer initialization

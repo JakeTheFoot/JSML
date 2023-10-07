@@ -1,3 +1,6 @@
+from scipy.signal import convolve2d
+import numpy as np
+
 # Convolutional layer class
 
 

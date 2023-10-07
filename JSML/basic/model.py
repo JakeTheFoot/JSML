@@ -1,4 +1,10 @@
+import numpy as np
+import pickle
+import copy
+
 # Model class
+
+
 class Model:
 
     def __init__(self):

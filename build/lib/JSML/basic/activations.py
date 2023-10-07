@@ -1,4 +1,8 @@
+import numpy as np
+
 # ReLU activation
+
+
 class Activation_ReLU:
 
     # Forward pass
