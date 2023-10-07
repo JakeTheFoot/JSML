@@ -1,1 +1,1 @@
-from beyop import *
+from .beyop import *

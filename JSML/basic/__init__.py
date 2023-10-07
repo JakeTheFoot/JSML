@@ -1,3 +1,3 @@
-from layers import *
-from model import *
-from optimizers import *
+from .layers import *
+from .model import *
+from .optimizers import *
