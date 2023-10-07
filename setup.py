@@ -19,6 +19,7 @@ setup(
         'joblib',
         'opencv-python',  # for cv2
         'gym',
+        'python-abc',
     ],
     keywords=['python', 'Neural Networks', 'AI', 'CNN',
               'RNN', 'DQN', 'LSTM', 'GRU', 'Transformers', 'Beyesian Optimization'],
