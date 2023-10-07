@@ -1,4 +1,6 @@
-# Beyesian Optimizer
+from abc import ABC
+
+# Bayesian Optimization
 
 
 class BayesianOptimizer(ABC):
