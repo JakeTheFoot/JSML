@@ -1,7 +1,5 @@
 import numpy as np
 import json
-import cv2
-import os
 
 # Create filters
 
