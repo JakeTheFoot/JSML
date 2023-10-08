@@ -94,12 +94,3 @@ class Layer_Dropout:
     def backward(self, dvalues):
         # Gradient on values
         self.dinputs = dvalues * self.binary_mask
-
-# Input "layer"
-
-
-class Layer_Input:
-
-    # Forward pass
-    def forward(self, inputs, training):
-        self.output = inputs

@@ -20,6 +20,8 @@ setup(
         'opencv-python',  # for cv2
         'gym',
         'python-abc',
+        'scikit-optimize',
+        'sci-kit-learn'
     ],
     keywords=['python', 'Neural Networks', 'AI', 'CNN',
               'RNN', 'DQN', 'LSTM', 'GRU', 'Transformers', 'Beyesian Optimization'],
