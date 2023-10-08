@@ -423,8 +423,6 @@ class Layer_Input:
     def forward(self, inputs, training):
         self.output = inputs
 
-import numpy as np
-
 # Common loss class
 
 
@@ -746,7 +744,6 @@ class Accuracy_Regression(Accuracy):
     def compare(self, predictions, y):
         return np.absolute(predictions - y) < self.precision
 
-import numpy as np
 
 # ReLU activation
 

@@ -1,0 +1,10 @@
+numpy
+scipy
+sklearn
+matplotlib
+joblib
+opencv-python
+gym
+python-abc
+scikit-optimize
+sci-kit-learn
