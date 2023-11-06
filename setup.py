@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.2.6'
+VERSION = '0.2.8'
 DESCRIPTION = 'Non-Functional Machine Learning Library'
 
 # Setting up
@@ -8,7 +8,7 @@ setup(
     name="JSML",
     version=VERSION,
     author="Jake Silberstein",
-    author_email="<jake.silberstein8@gmail.com>",
+    author_email="jake.silberstein8@gmail.com",
     description=DESCRIPTION,
     packages=find_packages(),
     install_requires=[
@@ -17,11 +17,11 @@ setup(
         'sklearn',
         'matplotlib',
         'joblib',
-        'opencv-python',  # for cv2
+        'opencv-python',
         'gym',
         'python-abc',
         'scikit-optimize',
-        'sci-kit-learn'
+        'scikit-learn'
     ],
     keywords=['python', 'Neural Networks', 'AI', 'CNN',
               'RNN', 'DQN', 'LSTM', 'GRU', 'Transformers', 'Beyesian Optimization'],

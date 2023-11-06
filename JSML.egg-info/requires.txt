@@ -7,4 +7,4 @@ opencv-python
 gym
 python-abc
 scikit-optimize
-sci-kit-learn
+scikit-learn
