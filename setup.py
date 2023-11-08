@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.2.8'
+VERSION = '0.2.9'
 DESCRIPTION = 'Non-Functional Machine Learning Library'
 
 # Setting up
@@ -14,7 +14,7 @@ setup(
     install_requires=[
         'numpy',
         'scipy',
-        'sklearn',
+        'scikit-learn',
         'matplotlib',
         'joblib',
         'opencv-python',
