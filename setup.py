@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.2.9'
+VERSION = '0.2.10'
 DESCRIPTION = 'Non-Functional Machine Learning Library'
 
 # Setting up
