@@ -1,11 +1,11 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.2.10'
+VERSION = '0.2.14'
 DESCRIPTION = 'Non-Functional Machine Learning Library'
 
 # Setting up
 setup(
-    name="JSML",
+    name="JakeSilbersteinMachineLearning",
     version=VERSION,
     author="Jake Silberstein",
     author_email="jake.silberstein8@gmail.com",
