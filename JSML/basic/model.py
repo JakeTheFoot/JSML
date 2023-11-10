@@ -1,6 +1,7 @@
 import numpy as np
 import pickle
 import copy
+import matplotlib.pyplot as plt
 
 # Model class
 
@@ -72,6 +73,12 @@ class Model:
             if hasattr(self.layers[i], 'weights'):
                 self.trainable_layers.append(self.layers[i])
 
+        # Add all layer types used to a list
+        # This is used later for training protocol establishment
+        self.layerTypes = [object.__class__.__name__ for object in self.trainable_layers]
+        self.layerTypes = list(dict.fromkeys(self.layerTypes))
+        print(self.layerTypes)
+
         # Update loss object with trainable layers
         if self.loss is not None:
             self.loss.remember_trainable_layers(
@@ -112,8 +119,10 @@ class Model:
         # Main training loop
         for epoch in range(1, epochs+1):
 
-            # Print epoch number
-            print(f'epoch: {epoch}')
+            # Print each epoch number
+            print('\n\n\n================================\n'
+                f'Epoch: {epoch}\n'
+                '================================')
 
             # Reset accumulated values in loss and accuracy objects
             self.loss.new_pass()
@@ -158,13 +167,16 @@ class Model:
                 self.optimizer.post_update_params()
 
                 # Print a summary
+                # Inside your step loop
                 if not step % print_every or step == train_steps - 1:
-                    print(f'step: {step}, ' +
-                          f'acc: {accuracy:.3f}, ' +
-                          f'loss: {loss:.3f} (' +
-                          f'data_loss: {data_loss:.3f}, ' +
-                          f'reg_loss: {regularization_loss:.3f}), ' +
-                          f'lr: {self.optimizer.current_learning_rate}')
+                    print(f'Step: {step}\n'
+                        f'--------------------------------\n'    
+                        f'Accuracy: {accuracy:.3f}\n'
+                        f'Loss: {loss:.3f}\n'
+                        f'   - Data Loss: {data_loss:.3f}\n'
+                        f'   - Regularization Loss: {regularization_loss:.3f}\n'
+                        f'Learning Rate: {self.optimizer.current_learning_rate}\n'
+                        '--------------------------------\n')
 
             # Get and print epoch loss and accuracy
             epoch_data_loss, epoch_regularization_loss = \
@@ -173,12 +185,16 @@ class Model:
             epoch_loss = epoch_data_loss + epoch_regularization_loss
             epoch_accuracy = self.accuracy.calculate_accumulated()
 
-            print(f'training, ' +
-                  f'acc: {epoch_accuracy:.3f}, ' +
-                  f'loss: {epoch_loss:.3f} (' +
-                  f'data_loss: {epoch_data_loss:.3f}, ' +
-                  f'reg_loss: {epoch_regularization_loss:.3f}), ' +
-                  f'lr: {self.optimizer.current_learning_rate}')
+            # Print a summary
+            # After completing an epoch
+            print(f'========================================\n'
+                f'Training Summary for Epoch {epoch}\n'
+                f'Accuracy: {epoch_accuracy:.3f}\n'
+                f'Loss: {epoch_loss:.3f}\n'
+                f'   - Data Loss: {epoch_data_loss:.3f}\n'
+                f'   - Regularization Loss: {epoch_regularization_loss:.3f}\n'
+                f'Learning Rate: {self.optimizer.current_learning_rate}\n'
+                '========================================')
 
             # If there is the validation data
             if validation_data is not None:
@@ -241,9 +257,12 @@ class Model:
         validation_accuracy = self.accuracy.calculate_accumulated()
 
         # Print a summary
-        print(f'validation, ' +
-              f'acc: {validation_accuracy:.3f}, ' +
-              f'loss: {validation_loss:.3f}')
+        print(f'========================================\n'
+            f'Validation Summary\n'
+            f'--------------------------------\n'
+            f'Accuracy: {validation_accuracy:.3f}\n'
+            f'Loss: {validation_loss:.3f}\n'
+            f'========================================')
 
     # Predicts on the samples
     def predict(self, X, *, batch_size=None):
