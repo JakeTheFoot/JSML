@@ -2,6 +2,9 @@ import numpy as np
 import pickle
 import copy
 import matplotlib.pyplot as plt
+import json
+import time
+import os
 
 # Model class
 
@@ -99,7 +102,17 @@ class Model:
 
     # Train the model
     def train(self, X, y, *, epochs=1, batch_size=None,
-              print_every=1, validation_data=None):
+              print_every=1, validation_data=None, data_tracking_config=None):
+
+        # Initialize the DataTracker with the configuration
+        if data_tracking_config:
+            self.tracker = DataTracker(data_tracking_config.track_settings, 
+                                           data_tracking_config.graph_assignments, 
+                                           data_tracking_config.show_data, 
+                                           data_tracking_config.save_data)
+        else:
+            # Default empty tracker if no configuration provided
+            self.tracker = DataTracker({}, {}, False, False)
 
         # Initialize accuracy object
         self.accuracy.init(y)
@@ -118,6 +131,9 @@ class Model:
 
         # Main training loop
         for epoch in range(1, epochs+1):
+            # Start tracking the epoch time if required
+            if data_tracking_config and (data_tracking_config.show_data or data_tracking_config.save_data):
+                self.tracker.start_epoch()
 
             # Print each epoch number
             print('\n\n\n================================\n'
@@ -178,6 +194,24 @@ class Model:
                         f'Learning Rate: {self.optimizer.current_learning_rate}\n'
                         '--------------------------------\n')
 
+            # Track data if enabled
+            if 'loss' in data_tracking_config.track_settings and data_tracking_config.track_settings['loss']:
+                self.tracker.track('loss', loss)
+            if 'accuracy' in data_tracking_config.track_settings and data_tracking_config.track_settings['accuracy']:
+                self.tracker.track('accuracy', accuracy)
+            if 'learning_rate' in data_tracking_config.track_settings and data_tracking_config.track_settings['learning_rate']:
+                self.tracker.track('learning_rate', self.optimizer.current_learning_rate)
+
+            # Check and track gradient norms if enabled
+            if 'gradient_norms' in data_tracking_config.track_settings and data_tracking_config.track_settings['gradient_norms']:
+                gradient_norms = [np.linalg.norm(layer.dweights) for layer in self.trainable_layers if hasattr(layer, 'dweights')]
+                self.tracker.track('gradient_norms', np.mean(gradient_norms))
+
+            # Check and track parameter statistics if enabled
+            if 'param_mean' in data_tracking_config.track_settings and data_tracking_config.track_settings['param_mean']:
+                param_stats = [np.mean(layer.weights) for layer in self.trainable_layers if hasattr(layer, 'weights')]
+                self.tracker.track('param_mean', np.mean(param_stats))
+
             # Get and print epoch loss and accuracy
             epoch_data_loss, epoch_regularization_loss = \
                 self.loss.calculate_accumulated(
@@ -198,10 +232,21 @@ class Model:
 
             # If there is the validation data
             if validation_data is not None:
-
                 # Evaluate the model:
-                self.evaluate(*validation_data,
+                val_loss, val_accuracy = self.evaluate(*validation_data,
                               batch_size=batch_size)
+            self.tracker.track('val_loss', val_loss)
+            self.tracker.track('val_accuracy', val_accuracy)
+
+            if data_tracking_config and (data_tracking_config.show_data or data_tracking_config.save_data):
+                self.tracker.end_epoch()
+
+        # Display and save data if flags are true
+        if data_tracking_config:
+            if data_tracking_config.show_data:
+                self.tracker.display_graphs()
+            if data_tracking_config.save_data:
+                self.tracker.save_data_to_json()
 
     # Evaluates the model using passed-in dataset
     def evaluate(self, X_val, y_val, *, batch_size=None):
@@ -263,6 +308,8 @@ class Model:
             f'Accuracy: {validation_accuracy:.3f}\n'
             f'Loss: {validation_loss:.3f}\n'
             f'========================================')
+
+        return validation_loss, validation_accuracy
 
     # Predicts on the samples
     def predict(self, X, *, batch_size=None):
@@ -433,6 +480,72 @@ class Model:
         # Return a model
         return model
 
+
+# Data tracking utils
+
+
+class DataTracker:
+    def __init__(self, track_settings, graph_assignments, show_data=False, save_data=False):
+        #track_settings: Dictionary specifying which metrics to track.
+        #graph_assignments: Dictionary specifying graph number assignments for each metric.
+        #show_data: Flag to display graphs at the end of training.
+        #save_data: Flag to save data to a JSON file.
+        self.track_settings = track_settings
+        self.graph_assignments = graph_assignments
+        self.show_data = show_data
+        self.save_data = save_data
+        self.data = {metric: [] for metric in track_settings if track_settings[metric]}
+        self.start_time = None
+
+    def track(self, metric, value):
+        #Track a metric if it's enabled
+        if self.track_settings.get(metric, False):
+            self.data[metric].append(value)
+
+    def start_epoch(self):
+        #Record the start time of an epoch.
+        if self.track_settings.get("training_time", False):
+            self.start_time = time.time()
+
+    def end_epoch(self):
+        #Record the training time for an epoch.
+        if self.track_settings.get("training_time", False) and self.start_time is not None:
+            epoch_time = time.time() - self.start_time
+            self.data["training_time"].append(epoch_time)
+            self.start_time = None
+
+    def display_graphs(self):
+            # Display graphs for tracked metrics
+            if self.show_data:
+                graph_data = {}
+                for metric, assignments in self.graph_assignments.items():
+                    for assignment in assignments:
+                        # Check if the assignment is a tuple (graph_num, scale_factor)
+                        if isinstance(assignment, tuple):
+                            graph_num, scale_factor = assignment
+                            scaled_data = [d * scale_factor for d in self.data[metric]]
+                            graph_data.setdefault(graph_num, []).append((metric, scaled_data))
+                        else:
+                            graph_num = assignment
+                            graph_data.setdefault(graph_num, []).append((metric, self.data[metric]))
+                
+                for graph_num, metrics in graph_data.items():
+                    plt.figure(graph_num)
+                    for metric, data in metrics:
+                        plt.plot(data, label=metric)
+                    plt.title(f"Graph {graph_num}")
+                    plt.legend()
+                    plt.xlabel("Epoch")
+                    plt.ylabel("Value")
+                plt.show()
+
+    def save_data_to_json(self, file_name="training_data.json"):
+        #Save tracked data to a JSON file.
+        if self.save_data:
+            with open(file_name, "w") as file:
+                json.dump(self.data, file)
+
+
 # Input "layer"
 
 
@@ -441,6 +554,7 @@ class Layer_Input:
     # Forward pass
     def forward(self, inputs, training):
         self.output = inputs
+
 
 # Common loss class
 
