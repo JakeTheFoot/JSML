@@ -510,6 +510,8 @@ class Loss:
 
 
 # Cross-entropy loss
+
+
 class Loss_CategoricalCrossentropy(Loss):
 
     # Forward pass
@@ -561,6 +563,8 @@ class Loss_CategoricalCrossentropy(Loss):
 
 # Softmax classifier - combined Softmax activation
 # and cross-entropy loss for faster backward step
+
+
 class Activation_Softmax_Loss_CategoricalCrossentropy:
 
     # Backward pass
@@ -583,6 +587,8 @@ class Activation_Softmax_Loss_CategoricalCrossentropy:
 
 
 # Binary cross-entropy loss
+
+
 class Loss_BinaryCrossentropy(Loss):
 
     # Forward pass
@@ -621,6 +627,8 @@ class Loss_BinaryCrossentropy(Loss):
 
 
 # Mean Squared Error loss
+
+
 class Loss_MeanSquaredError(Loss):  # L2 loss
 
     # Forward pass
@@ -648,6 +656,8 @@ class Loss_MeanSquaredError(Loss):  # L2 loss
 
 
 # Mean Absolute Error loss
+
+
 class Loss_MeanAbsoluteError(Loss):  # L1 loss
 
     def forward(self, y_pred, y_true):
@@ -675,6 +685,8 @@ class Loss_MeanAbsoluteError(Loss):  # L1 loss
 
 
 # Common accuracy class
+
+
 class Accuracy:
 
     # Calculates an accuracy
@@ -710,6 +722,8 @@ class Accuracy:
 
 
 # Accuracy calculation for classification model
+
+
 class Accuracy_Categorical(Accuracy):
 
     def __init__(self, *, binary=False):
@@ -728,6 +742,8 @@ class Accuracy_Categorical(Accuracy):
 
 
 # Accuracy calculation for regression model
+
+
 class Accuracy_Regression(Accuracy):
 
     def __init__(self):
@@ -770,7 +786,7 @@ class Activation_ReLU:
     def predictions(self, outputs):
         return outputs
 
-# Softmax activation
+# Softmax 
 
 
 class Activation_Softmax:
