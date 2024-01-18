@@ -120,7 +120,7 @@ class Layer_Convolutional:
 
 # Convolutional Layer Output Normalization
     
-class Layer_ConvOutNormalization:
+class Layer_ConvolutionalNormalizer:
     def pad_to_max_dimensions(self, input_array, max_height, max_width):
         current_height, current_width = input_array.shape[1], input_array.shape[2]
         padding_height = max_height - current_height
@@ -158,7 +158,7 @@ class Pooling:
 
 # Maxpooling Layer
 
-class Layer_MaxPooling(Pooling):
+class Pooling_Max(Pooling):
     def forward(self, inputs, training):
         self.inputs = np.array(inputs)
         # Apply max pooling
@@ -169,29 +169,32 @@ class Layer_MaxPooling(Pooling):
     def backward(self, dvalues):
         # Initialize gradient array with zeros
         self.dinput = np.zeros(self.inputs.shape)
-        print("Max Pooling - dvalues Shape:", dvalues.shape)
 
-        for i in range(self.inputs.shape[0]):
-            for j in range(dvalues.shape[1]):
-                for k in range(dvalues.shape[2]):
-                    # Determine the region of the input that contributed to the max pooling
-                    region = self.inputs[i, j*self.filterSize[0]:(j+1)*self.filterSize[0],
-                                         k*self.filterSize[1]:(k+1)*self.filterSize[1]]
-                    maxVal = np.max(region)
-                    # Create a mask where the maximum value occurred
-                    mask = (region == maxVal)
-                    # Propagate the gradient to the maximum value
-                    self.dinput[i, j*self.filterSize[0]:(j+1)*self.filterSize[0],
-                                k*self.filterSize[1]:(k+1)*self.filterSize[1]] += mask * dvalues[j, k]
+        for j in range(dvalues.shape[0]):
+            for k in range(dvalues.shape[1]):
+                # Calculate the start and end indices for the pooling region
+                start_j = j * self.filterSize[0]
+                end_j = start_j + self.filterSize[0]
+                start_k = k * self.filterSize[1]
+                end_k = start_k + self.filterSize[1]
+
+                # Extract the region from the ith image
+                region = self.inputs[start_j:end_j, start_k:end_k]
+                maxVal = np.max(region)
+                # Create a mask for the max value
+                mask = (region == maxVal)
+
+                # Distribute the gradient to the max value position
+                self.dinput[start_j:end_j, start_k:end_k] += mask * dvalues[j, k]
 
         return self.dinput
 
 # Averagepooling layer
 
-class Layer_AveragePooling(Pooling):
+class Pooling_Average(Pooling):
     def forward(self, inputs, training):
         inputs = np.array(inputs)
-        self.input = inputs
+        self.inputs = inputs
         self.input_shape = inputs.shape
         self.output = [skimage.measure.block_reduce(image, self.filterSize, np.mean) for image in inputs]
         
@@ -203,30 +206,29 @@ class Layer_AveragePooling(Pooling):
         return np.array(self.output)
 
     def backward(self, dvalues):
-        self.dinput = np.zeros(self.inputs.shape)
-        print("Max Pooling - dvalues Shape:", dvalues.shape)
+        dvalues = np.array(dvalues).reshape(np.array(dvalues).shape[1], np.array(dvalues).shape[2])
+        # Initialize dinputs to have the same shape as inputs
+        self.dinputs = np.zeros(self.inputs[1].shape)
+
+        # Calculate the number of elements in each pooling window
+        num_elements = self.filterSize[0] * self.filterSize[1]
 
         for j in range(dvalues.shape[0]):
             for k in range(dvalues.shape[1]):
                 # Calculate the start and end indices for the pooling region
                 start_j = j * self.filterSize[0]
                 end_j = start_j + self.filterSize[0]
-                start_k = k * self.filterSize[0]
-                end_k = start_k + self.filterSize[0]
-                
-                # Extract the region
-                region = self.inputs[start_j:end_j, start_k:end_k]
-                maxVal = np.max(region)
-                mask = (region == maxVal)
+                start_k = k * self.filterSize[1]
+                end_k = start_k + self.filterSize[1]
 
-                # Distribute the gradient
-                self.dinput[start_j:end_j, start_k:end_k] += mask * dvalues[j, k]
+                # Distribute the gradient uniformly to the pooling 
+                self.dinputs[start_j:end_j, start_k:end_k] += dvalues[j, k] / num_elements
 
-        return self.dinput
+        return self.dinputs
 
-# Flatten layer
+# Flatten pooling layer
 
-class Layer_Flatten:
+class Pooling_Flatten:
 
     # forward
     def forward(self, inputs, training):
@@ -403,11 +405,11 @@ data_tracking_config = DataTracker(track_settings, graph_assignments, show_data=
 model = Model()
 model.add(Layer_Convolutional(filters=filters, biases=biases[0], padding_type='valid'))
 model.add(Activation_ReLU())
-model.add(Layer_ConvOutNormalization())
-model.add(Layer_MaxPooling(2))
-model.add(Layer_AveragePooling(2))
+model.add(Layer_ConvolutionalNormalizer())
+model.add(Pooling_Max(2))
+model.add(Pooling_Average(2))
 model.add(Activation_ReLU())
-model.add(Layer_Flatten())
+model.add(Pooling_Flatten())
 model.add(Layer_Dense(49, 128))
 model.add(Activation_ReLU())
 model.add(Layer_Dense(128, 10))
