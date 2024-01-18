@@ -898,64 +898,69 @@ class Accuracy_Regression(Accuracy):
 
 
 class Activation_ReLU:
-
     # Forward pass
     def forward(self, inputs, training):
         # Remember input values
         self.inputs = inputs
-        # Calculate output values from inputs
-        self.output = np.maximum(0, inputs)
+
+        # Initialize an empty list for the outputs
+        self.output = []
+
+        # Process each input element
+        for img in inputs:
+            # Apply ReLU (max with 0) element-wise
+            self.output.append(np.maximum(0, img))
 
     # Backward pass
     def backward(self, dvalues):
-        # Since we need to modify original variable,
-        # let's make a copy of values first
-        self.dinputs = dvalues.copy()
+        # Initialize an empty list for dinputs
+        self.dinputs = []
 
-        # Zero gradient where input values were negative
-        self.dinputs[self.inputs <= 0] = 0
+        # Process each element in dvalues
+        for i in range(len(dvalues)):
+            # Make a copy of the current set of values
+            current = dvalues[i].copy()
 
-    # Calculate predictions for outputs
-    def predictions(self, outputs):
-        return outputs
+            # Zero gradient where input values were negative
+            current[self.inputs[i] <= 0] = 0
+
+            # Append to dinputs
+            self.dinputs.append(current)
 
 # Softmax 
 
 
 class Activation_Softmax:
-
     # Forward pass
     def forward(self, inputs, training):
         # Remember input values
         self.inputs = inputs
 
-        # Get unnormalized probabilities
-        exp_values = np.exp(inputs - np.max(inputs, axis=1,
-                                            keepdims=True))
-        # Normalize them for each sample
-        probabilities = exp_values / np.sum(exp_values, axis=1,
-                                            keepdims=True)
-
-        self.output = probabilities
+        try:
+            if np.array(inputs).ndim <= 2:
+                exp_values = np.exp(inputs - np.max(inputs, axis=1, keepdims=True))
+                self.output = exp_values / np.sum(exp_values, axis=1, keepdims=True)
+            else:
+                raise ValueError("Input has more than two dimensions")
+        except:
+            # Building the output array from scratch
+            self.output = np.array([exp_vals / np.sum(exp_vals) for exp_vals in np.exp(inputs - np.max(inputs, axis=1, keepdims=True))])
 
     # Backward pass
     def backward(self, dvalues):
+        # Initialize an empty list for dinputs
+        self.dinputs = []
 
-        # Create uninitialized array
-        self.dinputs = np.empty_like(dvalues)
-
-        # Enumerate outputs and gradients
-        for index, (single_output, single_dvalues) in \
-                enumerate(zip(self.output, dvalues)):
+        # Process each element in dvalues
+        for i in range(len(dvalues)):
             # Flatten output array
-            single_output = single_output.reshape(-1, 1)
+            single_output = self.output[i].reshape(-1, 1)
+            
             # Calculate Jacobian matrix of the output
-            jacobian_matrix = np.diagflat(single_output) - \
-                np.dot(single_output, single_output.T)
-            # Calculate sample-wise gradient
-            # and add it to the array of sample gradients
-            self.dinputs[index] = np.dot(jacobian_matrix,
-                                         single_dvalues)
+            jacobian_matrix = np.diagflat(single_output) - np.dot(single_output, single_output.T)
+
+            # Calculate sample-wise gradient and add it to the array of sample gradients
+            self.dinputs.append(np.dot(jacobian_matrix, dvalues[i]))
 
     # Calculate predictions for outputs
     def predictions(self, outputs):
@@ -965,18 +970,30 @@ class Activation_Softmax:
 
 
 class Activation_Sigmoid:
-
     # Forward pass
     def forward(self, inputs, training):
-        # Save input and calculate/save output
-        # of the sigmoid function
+        # Remember input values
         self.inputs = inputs
-        self.output = 1 / (1 + np.exp(-inputs))
+
+        try:
+            if np.array(inputs).ndim <= 2:
+                self.output = 1 / (1 + np.exp(-inputs))
+            else:
+                raise ValueError("Input has more than two dimensions")
+        except:
+            # Building the output array from scratch
+            self.output = np.array([1 / (1 + np.exp(-img)) for img in inputs])
 
     # Backward pass
     def backward(self, dvalues):
-        # Derivative - calculates from output of the sigmoid function
-        self.dinputs = dvalues * (1 - self.output) * self.output
+        # Initialize an empty list for dinputs
+        self.dinputs = []
+
+        # Process each element in dvalues
+        for i in range(len(dvalues)):
+            # Derivative - calculates from output of the sigmoid function
+            derivative = (1 - self.output[i]) * self.output[i]
+            self.dinputs.append(dvalues[i] * derivative)
 
     # Calculate predictions for outputs
     def predictions(self, outputs):

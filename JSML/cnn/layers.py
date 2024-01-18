@@ -1,193 +1,133 @@
 from scipy.signal import convolve2d
 import numpy as np
 
-# Convolutional layer class
+
+# Convolutional Layer
 
 
 class Layer_Convolutional:
+    def __init__(self, filters, padding_type='valid', biases=None, weight_regularizer_l1=0, weight_regularizer_l2=0, bias_regularizer_l1=0, bias_regularizer_l2=0, input_formatting_hierarchy='default'):
+        self.filters = [self.validate_filter(f) for f in self.ensure_list(filters)]
+        self.padding_type = self.validate_padding_type(padding_type)
+        self.biases = np.array(biases, dtype=float) if biases is not None else np.zeros(len(self.filters))
+        self.weight_regularizer_l1 = max(weight_regularizer_l1, 0)
+        self.weight_regularizer_l2 = max(weight_regularizer_l2, 0)
+        self.bias_regularizer_l1 = max(bias_regularizer_l1, 0)
+        self.bias_regularizer_l2 = max(bias_regularizer_l2, 0)
+        self.input_formatting_hierarchy = input_formatting_hierarchy
 
-    # Initialization
-    def __init__(self, Filters, Padding=0, Biases=0, IsMultipleFilters=True,
-                 IsMultipleInputs=True, weight_regularizer_l1=0, weight_regularizer_l2=0,
-                 bias_regularizer_l1=0, bias_regularizer_l2=0):
+    def ensure_list(self, item):
+        return item if isinstance(item, list) else [item]
 
-        # Set layer variables
-        self.Padding = Padding
-        self.Biases = Biases
-        self.Filters = np.array(Filters, dtype=object)
-        self.IsMultipleFilters = IsMultipleFilters
-        self.IsMultipleInputs = IsMultipleInputs
-        self.weight_regularizer_l1 = weight_regularizer_l1
-        self.weight_regularizer_l2 = weight_regularizer_l2
-        self.bias_regularizer_l1 = bias_regularizer_l1
-        self.bias_regularizer_l2 = bias_regularizer_l2
+    def validate_filter(self, filter):
+        if not isinstance(filter, np.ndarray) or filter.ndim not in [1, 2]:
+            raise ValueError("Each filter must be a 1D or 2D numpy array.")
+        return np.array(filter, dtype=float)
 
-        # Define blank list
-        # to append to
-        self.FilterSizes = []
+    def validate_padding_type(self, padding_type):
+        if padding_type not in ['valid', 'same']:
+            raise ValueError("Padding type must be either 'valid' or 'same'.")
+        return padding_type
 
-        # Itterate through every filter and append
-        # it's size to the FilterSizes list
-        for i, kernel in enumerate(self.Filters):
+    def calculate_padding(self, image, filter):
+        if self.padding_type == 'same':
+            # Calculate padding for height and width
+            pad_h = ((image.shape[1] - 1) * self.stride + filter.shape[0] - image.shape[1]) // 2
+            pad_w = ((image.shape[2] - 1) * self.stride + filter.shape[1] - image.shape[2]) // 2
+            return np.pad(image, ((0, 0), (pad_h, pad_h), (pad_w, pad_w), (0, 0)), mode='constant')
+        else:
+            return image
 
-            # Append the size
-            self.FilterSizes.append(np.array(self.Filters[i]).shape)
+    def apply_filter(self, image, filter, mode='forward'):
+        # Forward pass
+        if mode == 'forward':
+            if image.ndim == 1:
+                # 1D convolution
+                return scipy_convolve(image, filter, mode='valid')
+            elif image.ndim == 2:
+                # 2D convolution
+                return scipy_convolve2d(image, filter, mode='valid')
+            elif image.ndim == 3:
+                # Multi-channel 2D convolution
+                return np.sum([scipy_convolve2d(image[:, :, c], filter, mode='valid') for c in range(image.shape[2])], axis=0)
+            else:
+                raise ValueError("Unsupported input dimensionality for forward mode.")
 
-    # ConvolutionalSlicer method
-    def ConvolutionalSlicer(self, kernel, SlicerInput, ConvolutionType='Basic_Convolution', Pass='forward', index=0):
+        # Backward pass
+        elif mode == 'backward':
+            if image.ndim == 1:
+                # 1D convolution derivative
+                return scipy_convolve(image, np.flip(filter), mode='full')[1:-1]
+            elif image.ndim == 2:
+                # 2D convolution derivative
+                return scipy_convolve2d(image, np.rot90(filter, 2), mode='full')
+            elif image.ndim == 3:
+                # Multi-channel 2D convolution derivative
+                rotated_filter = np.rot90(filter, 2)
+                channel_gradients = [scipy_convolve2d(image[:, :, c], rotated_filter, mode='full') for c in range(image.shape[2])]
+                return np.sum(channel_gradients, axis=0)
+            else:
+                raise ValueError("Unsupported input dimensionality for backward mode.")
+        else:
+            raise ValueError("Unsupported mode. Choose 'forward' or 'backward'.")
 
-        # Set the current sizes
-        # (length x hight)
-        self.KernelSize = [len(kernel[0]), len(kernel)]
-        self.InputSize = [len(SlicerInput[0]), len(SlicerInput)]
+    def interpret_input_format(self, image):
+        if self.input_formatting_hierarchy == 'default':
+            if image.ndim == 1:
+                return image.reshape(1, -1, 1)
+            elif image.ndim == 2:
+                return image.reshape(image.shape[0], image.shape[1], 1)
+            elif image.ndim == 3:
+                return image
+            else:
+                raise ValueError("Invalid image dimensionality.")
+        else:
+            # Handle alternative setups based on 'input_formatting_hierarchy'
+            pass  # Implement as needed
 
-        # Calculate output size
-        # length x hight
-        self.OutputSize = [self.InputSize[0] - self.KernelSize[0] +
-                           1, self.InputSize[1] - self.KernelSize[1] + 1]
+    def validate_input_filter_compatibility(self, image, filter):
+        if (image.ndim - 1) != filter.ndim:
+            raise ValueError("Filter dimension must match image dimension.")
+        if any(f > d for f, d in zip(filter.shape, image.shape[:2])):
+            raise ValueError("Filter dimensions must not exceed image dimensions.")
 
-        # Define blank list
-        self.ConvolutionalSlice = []
-
-        # Add value to self object
-        self.SlicerInput = SlicerInput
-
-        self.ConvolutionResult = convolve2d(SlicerInput, kernel, mode='valid')
-
-        # If its the foward pass
-        # than add a bias
-        if Pass == 'forward':
-
-            if np.ndim(self.Biases) > 0:
-
-                # Add the bias
-                self.ConvolutionResult += self.Biases[0][index]
-
-        # Return the reshaped output of
-        # the convolution slice after
-        # undergoing it's given equation
-        return np.reshape(self.ConvolutionResult, self.OutputSize)
-
-# Additive convolution
-
-
-class Basic_Convolution(Layer_Convolutional):
-
-    # Forward method
     def forward(self, inputs, training):
+        self.inputs = self.ensure_list(inputs)
+        self.outputs = []
 
-        self.batch_size = len(model.batch_X)
-
-        self.XPadded = inputs
-
-        # Padding check
-        if self.Padding > 0:
-
-            # Multiple inputs check
-            if self.IsMultipleInputs == True:
-
-                self.XPadded = []
-
-                # If true, iterate through
-                # inputs and pad
-                for matrix in inputs:
-
-                    # Add padding
-                    self.XPadded.append(np.pad(matrix, self.Padding))
-
-        # For singular input
-        else:
-
-            # Add padding
-            self.XPadded = np.pad(self.XPadded, self.Padding)
-
-        # Define blank array
-        # for input sizes
-        self.InputSize = []
-
-        # If there are multiple inputs
-        if self.IsMultipleInputs == True:
-
-            # Itterate through each input
-            for matrix in self.XPadded:
-
-                # Append the hight x length
-                # of each input to the variable
-                self.InputSize.append([len(matrix[0]), len(matrix)])
-
-        # If there is one input
-        else:
-
-            # Get hight x length
-            # of the singular input
-            # and append it to the variable
-            self.InputSize = [len(self.XPadded[0]), len(self.XPadded)]
-
-        self.output = []
-
-        self.outputPreBatch = []
-
-        # Itterate through each input
-        for i, matrix in enumerate(self.XPadded):
-
-            # And for every kernel
-            for index, kernel in enumerate(self.Filters):
-
-                # Append the output of the convolution
-                self.outputPreBatch.append((self.ConvolutionalSlicer(
-                    kernel, matrix, 'Basic_Convolution', 'forward', index)))
-
-            self.output.append(self.outputPreBatch)
-
-        self.output = np.array(self.outputPreBatch, dtype=object)
+        for input_image in self.inputs:
+            filter_outputs = []
+            for filter in self.filters:
+                formatted_image = self.interpret_input_format(input_image)
+                self.validate_input_filter_compatibility(formatted_image, filter)
+                padded_image = self.apply_padding(formatted_image, filter)
+                conv_result = self.apply_filter(padded_image, filter)
+                filter_outputs.append(conv_result + self.biases)
+            self.outputs.append(np.array(filter_outputs))
 
     def backward(self, dvalues):
-
-        # Define blank lists to append to
-        self.dweights = []
-        self.dbiases = []
+        self.dweights = np.zeros_like(self.filters)
+        self.dbiases = np.zeros_like(self.biases)
         self.dinputs = []
 
-        # Gradients on regularization
-        # L1 on weights
         if self.weight_regularizer_l1 > 0:
-            dL1 = np.ones_like(self.Filters)
-            dL1[self.Filters < 0] = -1
-            self.dweights += self.weight_regularizer_l1 * dL1
-        # L2 on weights
+            self.dweights += self.weight_regularizer_l1 * np.sign(self.filters)
         if self.weight_regularizer_l2 > 0:
-            self.dweights += 2 * self.weight_regularizer_l2 * \
-                self.Filters
-        # L1 on biases
+            self.dweights += 2 * self.weight_regularizer_l2 * self.filters
+
         if self.bias_regularizer_l1 > 0:
-            dL1 = np.ones_like(self.Biases)
-            dL1[self.Biases < 0] = -1
-            self.dbiases += self.bias_regularizer_l1 * dL1
-        # L2 on biases
+            self.dbiases += self.bias_regularizer_l1 * np.sign(self.biases)
         if self.bias_regularizer_l2 > 0:
-            self.dbiases += 2 * self.bias_regularizer_l2 * \
-                self.Biases
+            self.dbiases += 2 * self.bias_regularizer_l2 * self.biases
 
-        # Iterate through every output (input on
-        # the forward pass, since self.output's
-        # first dimention is the inputs)
-        for i in range(0, self.batch_size):
+        for i, input_image in enumerate(self.inputs):
+            for j, filter in enumerate(self.filters):
+                self.dinputs.append(self.apply_filter(np.pad(dvalues[j], 1), filter, mode='backward'))
+                self.dweights[j] += self.apply_filter(dvalues[j], input_image, mode='backward')
+            self.dbiases[j] += np.sum(dvalues[j])
 
-            # Iterate through every filter index
-            for j in range(0, len(self.Filters)):
+        self.dinputs = np.array(self.dinputs)
 
-                # Get the rotated filter (180 degrees)
-                self.rotated_filter = np.rot90(self.Filters[j], 2)
-
-                # Convolve the gradient with the rotated filter
-                self.dinputs.append(self.ConvolutionalSlicer(
-                    self.rotated_filter, np.pad(dvalues[j], 1), 'Basic_Convolution', 'backward'))
-
-                # Append the derivative of the weights at index j
-                self.dweights.append(self.ConvolutionalSlicer(
-                    dvalues[j], self.XPadded[i], 'Basic_Convolution', 'backward'))
-
-                self.dbiases.append(sum(dvalues[j]))
 
 # Flatten layer
 
@@ -287,3 +227,99 @@ class Layer_Flatten:
 
         # convert the summed_inputs array to a NumPy array
         self.dinputs = np.array(self.summed_inputs, dtype=object)
+
+
+# Maxpooling layer
+
+
+class Layer_MaxPooling:
+    def __init__(self, pool_size=2, stride=2):
+        self.pool_size = pool_size
+        self.stride = stride
+        self.input_shape = None
+
+    def forward(self, inputs):
+        self.input_shape = inputs.shape
+        batch_size, height, width, channels = self.input_shape
+        
+        # Calculate output dimensions
+        output_height = (height - self.pool_size) // self.stride + 1
+        output_width = (width - self.pool_size) // self.stride + 1
+        
+        # Initialize output
+        self.output = np.zeros((batch_size, output_height, output_width, channels))
+        
+        # Perform max pooling
+        for i in range(output_height):
+            for j in range(output_width):
+                h_start = i * self.stride
+                h_end = h_start + self.pool_size
+                w_start = j * self.stride
+                w_end = w_start + self.pool_size
+                self.output[:, i, j, :] = np.max(inputs[:, h_start:h_end, w_start:w_end, :], axis=(1, 2))
+        return self.output
+
+    def backward(self, dvalues):
+        # Initialize gradient array
+        self.dinputs = np.zeros(self.input_shape)
+        
+        # Iterate over each region and propagate the gradient
+        for i in range(self.output.shape[1]):
+            for j in range(self.output.shape[2]):
+                h_start = i * self.stride
+                h_end = h_start + self.pool_size
+                w_start = j * self.stride
+                w_end = w_start + self.pool_size
+                
+                # Reshape for broadcasting
+                mask = (self.output[:, i, j, :] == self.inputs[:, h_start:h_end, w_start:w_end, :])
+                self.dinputs[:, h_start:h_end, w_start:w_end, :] += mask * dvalues[:, i:i+1, j:j+1, :]
+        return self.dinputs
+
+
+# Averagepooling layer
+
+
+class Layer_AveragePooling:
+    def __init__(self, pool_size=2, stride=2):
+        self.pool_size = pool_size
+        self.stride = stride
+        self.input_shape = None
+
+    def forward(self, inputs):
+        self.input_shape = inputs.shape
+        batch_size, height, width, channels = self.input_shape
+        
+        # Calculate output dimensions
+        output_height = (height - self.pool_size) // self.stride + 1
+        output_width = (width - self.pool_size) // self.stride + 1
+        
+        # Initialize output
+        self.output = np.zeros((batch_size, output_height, output_width, channels))
+        
+        # Perform average pooling
+        for i in range(output_height):
+            for j in range(output_width):
+                h_start = i * self.stride
+                h_end = h_start + self.pool_size
+                w_start = j * self.stride
+                w_end = w_start + self.pool_size
+                self.output[:, i, j, :] = np.mean(inputs[:, h_start:h_end, w_start:w_end, :], axis=(1, 2))
+        return self.output
+
+    def backward(self, dvalues):
+        # Initialize gradient array
+        self.dinputs = np.zeros(self.input_shape)
+        
+        # Iterate over each region and propagate the gradient
+        for i in range(self.output.shape[1]):
+            for j in range(self.output.shape[2]):
+                h_start = i * self.stride
+                h_end = h_start + self.pool_size
+                w_start = j * self.stride
+                w_end = w_start + self.pool_size
+                
+                # Calculate and distribute gradient
+                gradient = dvalues[:, i:i+1, j:j+1, :] / (self.pool_size * self.pool_size)
+                self.dinputs[:, h_start:h_end, w_start:w_end, :] += np.ones((self.pool_size, self.pool_size)) * gradient
+        return self.dinputs

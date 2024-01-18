@@ -21,7 +21,8 @@ setup(
         'gym',
         'python-abc',
         'scikit-optimize',
-        'scikit-learn'
+        'scikit-learn',
+        'scikit-image'
     ],
     keywords=['python', 'Neural Networks', 'AI', 'CNN',
               'RNN', 'DQN', 'LSTM', 'GRU', 'Transformers', 'Beyesian Optimization'],
