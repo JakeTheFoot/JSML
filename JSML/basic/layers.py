@@ -29,6 +29,7 @@ class Layer_Dense:
     def backward(self, dvalues):
         # Gradients on parameters
         self.dweights = np.dot(np.array(self.inputs).T, dvalues)
+        #print("Backwards layer dweights", self.dweights.shape)
         self.dbiases = np.sum(dvalues, axis=0, keepdims=True)
 
         # Gradients on regularization

@@ -6,10 +6,10 @@ import skimage.measure
 import numpy as np
 import os
 import cv2
+import math
 import matplotlib.pyplot as plt
 
 # NOTE: for tommrow, continnue debugging the conv layer. The shape is not aaccrate to what it should be and the way I'm coimbinnging finnal ouuutpuuts is wrong. Fix it and conntine debugging
-# ? why is valid producing inhomogenous output??
 # Convolutional Layer
 
 class Layer_Convolutional:
@@ -36,35 +36,20 @@ class Layer_Convolutional:
         else:
             raise ValueError(f"Unsupported padding type: {self.padding_type}")
 
-    def apply_filter(self, image, filter, mode='forward'):
-            # Debugging print: Check the mode and dimensions of input and filter
-            print(f"Mode: {mode}, Image Shape: {image.shape}, Filter Shape: {filter.shape}")
-
-            if mode == 'forward':
-                if image.ndim == 3:  # 2D image with batch size
-                    # Debugging print: Entering forward mode with 3D image
-                    print("Entering forward mode with 3D image")
-                    result = np.array([convolve2d(img, filter, mode='valid') for img in image])
-
-                    # Debugging print: Check the shape of the result after convolution
-                    print(f"Resulting shape after convolution (forward): {result.shape}")
+    def apply_filter(self, images, filters, mode='forward'):
+            if mode=='forward':  # 2D image with batch size
+                # Debugging print: Entering forward mode with 3D image
+                #print("Entering forward mode with 3D image")
+                if images.ndim == 3:
+                    result = np.array([convolve2d(image, filters, mode='valid') for image in images])
                     return result
                 else:
-                    raise ValueError("Unsupported input dimensionality for forward mode.")
-            elif mode == 'backward':
-                if image.ndim == 3:  # 2D image with batch size
-                    # Debugging print: Entering backward mode with 3D image
-                    print("Entering backward mode with 3D image")
-                    result = np.array([convolve2d(img, np.rot90(filter, 2), mode='full') for img in image])
-
-                    # Debugging print: Check the shape of the result after convolution
-                    print(f"Resulting shape after convolution (backward): {result.shape}")
-                    return result
-                else:
-                    raise ValueError("Unsupported input dimensionality for backward mode.")
-            else:
-                raise ValueError("Unsupported mode. Choose 'forward' or 'backward'.")
-
+                    raise ValueError("Unsupported input dimensionality")
+                # Debugging print: Check the shape of the result after convolution
+                #print(f"Resulting shape after convolution (forward): {result.shape}")
+            elif mode=='backward':  # 3D image with batch size
+                result = np.array(convolve2d(images, filters, mode='valid'))
+                return result
     def forward(self, inputs, training):
 
         '''print("Pre Convolution - Output Shape:", np.array(inputs).shape)
@@ -92,60 +77,124 @@ class Layer_Convolutional:
         else:
             raise ValueError(f"Unsupported padding type: {self.padding_type}")
         self.output = self.outputs
+        #for output in self.outputs:
+            #print("Output Shape of Convolutional Layer:", np.array(output).shape)
         return self.output
 
     def backward(self, dvalues):
+        #print("input shape", self.inputs.shape)
         self.dweights = []
         self.dbiases = np.zeros_like(self.biases)
         self.dinputs = np.zeros_like(self.inputs)
+        #print("dvalues shape", [np.array(dvalue).shape for dvalue in dvalues])
+        # Calcualte dinputs
+        filterConvolvedList = []
+        for filter, dvalue in zip(self.filters, dvalues):
+            #print("filter shape", filter.shape)
+            # Calculate filter dweights
+            self.padding = math.ceil((filter.shape[0] - 1))
+            #print("padding", self.padding)
+            #print(dvalue.shape)
+            #print("dvalue shape pre-pad", dvalue.shape)
+            dvalue = np.pad(dvalue, ((0, 0), (self.padding, self.padding), (self.padding, self.padding)), mode='constant')
+            #print("dvaluue shape post-pad", dvalue.shape)
+            #print("filter shape", filter.shape)
+            filter = np.rot90(filter, 2)
+            filterConvolved = [(self.apply_filter(dval, filter, mode='backward')) for dval in dvalue]
+            #print("conv result shape", np.array(filterConvolved).shape)
+            self.dinputs += (filterConvolved)
+        #print("dinputs shape", self.dinputs.shape)
 
+        '''
         for i, filter in enumerate(self.filters):
             filter_dvalues = dvalues if i == 0 else self.outputs[i-1]
             for j, img in enumerate(self.inputs):
                 self.dinputs[j] += self.apply_filter(filter_dvalues[j], filter, mode='backward')
             self.dweights.append(self.apply_filter(np.sum(filter_dvalues, axis=0), img, mode='backward'))
-
-        self.dbiases += np.sum(dvalues, axis=(0, 1, 2))
-
-        if self.weight_regularizer_l1 > 0:
-            for i in range(len(self.filters)):
-                self.dweights[i] += self.weight_regularizer_l1 * np.sign(self.filters[i])
-
-        if self.weight_regularizer_l2 > 0:
-            for i in range(len(self.filters)):
-                self.dweights[i] += 2 * self.weight_regularizer_l2 * self.filters[i]
-
+        '''
+        #print("entering dbiases calc\n\n")
+        for i, dvalue in enumerate(dvalues):
+            #print(dvalue.shape)
+            self.dbiases[i] += np.sum(dvalue, axis=(0, 1, 2))
+            #print("dbiases", self.dbiases[i])
+        #print(self.dbiases)
+        # stop
+        #print('stop')
         return self.dinputs
 
 
 # Convolutional Layer Output Normalization
-    
+#### !!!!!!!! NOTE: Tommrow I need to finish debugging why this produces an inhomogeneous output
+#### !!!!!!!! (i.e. why the smaller output from the previous layer isn't being correctly padded
+#### !!!!!!!! in the pad_to_max_dimensions function), and then finish debugging the backward pass
+#### !!!!!!!! for the convolutional layer. Dinputs is correclty calculated (given known equations),
+#### !!!!!!!! however the shape is not correct (It's too small; it's two units two small on both 
+#### !!!!!!!! the height and width). I need to figure out why this is the case and correct accordinly
+#### !!!!!!!! Finally, I need to impliment the derivitive of the weights and derivitive of the biases
+
 class Layer_ConvolutionalNormalizer:
-    def pad_to_max_dimensions(self, input_array, max_height, max_width):
+    def pad_to_max_dimensions(self, input_array):
         current_height, current_width = input_array.shape[1], input_array.shape[2]
-        padding_height = max_height - current_height
-        padding_width = max_width - current_width
+        padding_height = self.max_height - current_height
+        padding_width = self.max_width - current_width
 
         top_padding = padding_height // 2
         bottom_padding = padding_height - top_padding
         left_padding = padding_width // 2
         right_padding = padding_width - left_padding
-
+        #print("Input array shape", input_array.shape)
+        '''
         if padding_height % 2 != 0:
-            bottom_padding += 1
+            top_padding += 1
         if padding_width % 2 != 0:
-            right_padding += 1
+            left_padding += 1
+
+        if current_height == self.max_height and current_width % 2 != 0:
+            bottom_padding = 1
+        if current_width == self.max_width and  current_height % 2 != 0:
+            right_padding = 1'''
+
+        # print the padding to-be applyed
+        #print("Top Padding:", top_padding)
+        #print("Bottom Padding:", bottom_padding)
+        #print("Left Padding:", left_padding)
+        #print("Right Padding:", right_padding)
 
         padded_array = np.pad(input_array, ((0, 0), (top_padding, bottom_padding), (left_padding, right_padding)), mode='constant')
+        #print("Padded Array Shape:", padded_array.shape)  
         return padded_array
 
     def forward(self, inputs, training):
-        max_height = max(output.shape[1] for output in inputs)
-        max_width = max(output.shape[2] for output in inputs)
-
-        padded_outputs = [self.pad_to_max_dimensions(filter_output, max_height, max_width) for filter_output in inputs]
+        self.original_inputs = inputs
+        self.max_height = max(output.shape[1] for output in inputs)
+        self.max_width = max(output.shape[2] for output in inputs)
+        #print("Max Height & Width", self.max_height, self.max_width)
+        padded_outputs = [self.pad_to_max_dimensions(filter_output) for filter_output in inputs]
         self.output = np.sum(padded_outputs, axis=0)
         return self.output
+    
+    def backward(self, dvalues):
+        # Initialize an empty list to store the gradients for each input
+        self.dinputs = []
+        self.shapes = [input.shape for input in self.original_inputs]
+        #print(np.array(dvalues).shape)
+        # Iterate over each input shape
+        for i, shape in enumerate(self.shapes):
+            gradient = np.array(dvalues) / len(self.original_inputs)
+
+            # Check and adjust the gradient shape if necessary
+            if shape[1] != self.max_height:
+                difference = self.max_height - self.original_inputs[i].shape[1]
+                if difference % 2 != 0:
+                    gradient = gradient[:, 0:-1, 0:-1]
+                    difference -= 1
+                for _ in range(difference // 2):
+                    gradient = gradient[:, 1:-1, 1:-1]
+
+            # Append the adjusted gradient to dinputs
+            self.dinputs.append(gradient)
+        #print("dinputs shape convn", [np.array(dinput).shape for dinput in self.dinputs])    
+        return self.dinputs
 
 # Pooling Parent layer
 
@@ -163,12 +212,12 @@ class Pooling_Max(Pooling):
         self.inputs = np.array(inputs)
         # Apply max pooling
         self.output = [skimage.measure.block_reduce(image, self.filterSize, np.max) for image in self.inputs]
-        print("Max Pooling - Output Shape:", np.array(self.output).shape)
+        #print("Max Pooling - Output Shape:", np.array(self.output).shape)
         return self.output
 
     def backward(self, dvalues):
         # Initialize gradient array with zeros
-        self.dinput = np.zeros(self.inputs.shape)
+        self.dinputs = np.zeros(self.inputs.shape)
 
         for j in range(dvalues.shape[0]):
             for k in range(dvalues.shape[1]):
@@ -185,9 +234,9 @@ class Pooling_Max(Pooling):
                 mask = (region == maxVal)
 
                 # Distribute the gradient to the max value position
-                self.dinput[start_j:end_j, start_k:end_k] += mask * dvalues[j, k]
-
-        return self.dinput
+                self.dinputs[start_j:end_j, start_k:end_k] += mask * dvalues[j, k]
+        #print("dinputs shape max", self.dinputs.shape)
+        return self.dinputs
 
 # Averagepooling layer
 
@@ -377,7 +426,7 @@ X_test = (X_test.reshape(X_test.shape[0], 28, 28).astype(np.float32) - 127.5) / 
 
 
 # Create filters and biases using the Create_Filters function
-filter_shapes = [(3, 3), (5, 5)]  # Example filter shapes
+filter_shapes = [(2, 2), (5, 5)]  # Example filter shapes
 filters, biases = Create_Filters(filter_shapes, Biases=True)
 # Define the metrics you want to track
 track_settings = {
@@ -404,8 +453,8 @@ data_tracking_config = DataTracker(track_settings, graph_assignments, show_data=
 
 model = Model()
 model.add(Layer_Convolutional(filters=filters, biases=biases[0], padding_type='valid'))
-model.add(Activation_ReLU())
 model.add(Layer_ConvolutionalNormalizer())
+model.add(Activation_ReLU())
 model.add(Pooling_Max(2))
 model.add(Pooling_Average(2))
 model.add(Activation_ReLU())

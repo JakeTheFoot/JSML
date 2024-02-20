@@ -901,6 +901,7 @@ class Activation_ReLU:
     # Forward pass
     def forward(self, inputs, training):
         # Remember input values
+        print(np.array(inputs).shape)
         self.inputs = inputs
 
         # Initialize an empty list for the outputs
@@ -916,16 +917,33 @@ class Activation_ReLU:
         # Initialize an empty list for dinputs
         self.dinputs = []
 
-        # Process each element in dvalues
-        for i in range(len(dvalues)):
-            # Make a copy of the current set of values
-            current = dvalues[i].copy()
+        try:
+            # Process each element in dvalues
+            if np.array(dvalues).ndim <= 3:
+                for i in range(len(dvalues)):
+                    # Make a copy of the current set of values
+                    current = dvalues[i].copy()
+                    # Zero gradient where input values were negative
+                    current[self.inputs[i] <= 0] = 0
+                    # Append to dinputs
+                    self.dinputs.append(current)
+            else:
+                raise ValueError("Dimension greater than 3")
 
-            # Zero gradient where input values were negative
-            current[self.inputs[i] <= 0] = 0
-
-            # Append to dinputs
-            self.dinputs.append(current)
+        except Exception as e:
+            # If an error occurred in the if block, this else block will execute
+            for i, dvalue in enumerate(dvalues):
+                tempList = []
+                for j in range(len(dvalue)):
+                    # Make a copy of the current set of values
+                    current = dvalue[j].copy()
+                    # Zero gradient where input values were negative
+                    current[self.inputs[i][j] <= 0] = 0
+                    # Append to dinputs
+                    tempList.append(current)
+                self.dinputs.append(tempList)
+            #print("self.dinputs:", self.dinputs)
+            #print(np.array(self.dinputs[0]).shape)
 
 # Softmax 
 
